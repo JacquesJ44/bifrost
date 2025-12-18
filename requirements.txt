@@ -1,0 +1,9 @@
+flask
+flask-cors
+flask-mail
+flask-sqlalchemy
+flask-limiter
+pymysql
+python-dotenv
+email-validator 
+dnspython
