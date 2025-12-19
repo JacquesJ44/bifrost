@@ -33,6 +33,7 @@ app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_SUPPRESS_SEND'] = False  # Set to True to disable email sending (for testing)
 
 mail = Mail(app)
 
@@ -71,7 +72,7 @@ def fetch_units_by_site_id(site_id):
 
 def validate_email_domain(email: str) -> tuple[bool, str | None]:
     """
-    Returns (is_valid, error_message)
+    Returns (is_valid, normalized_email_or_error_message)
     """
 
     try:
@@ -89,7 +90,8 @@ def validate_email_domain(email: str) -> tuple[bool, str | None]:
     except Exception:
         return False, "Email domain cannot receive mail"
 
-    return True, None
+    # If valid, return normalized email
+    return True, normalized_email
 
 def send_support_email(payload):
     """
