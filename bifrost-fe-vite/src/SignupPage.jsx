@@ -215,22 +215,25 @@ export default function SignupPage() {
             <div>
               <label className="font-semibold mb-2 block">Package</label>
               <div className="flex flex-wrap gap-4">
-                {packages.map((pkg, idx) => (
-                  <label className="label cursor-pointer" key={idx}>
-                    <input
-                      type="radio"
-                      name="package"
-                      value={pkg}
-                      checked={selectedPackage === pkg}
-                      onChange={(e) => setSelectedPackage(e.target.value)}
-                      className="radio radio-primary mr-2"
-                      required
-                    />
-                    <span className="label-text">{pkg}</span>
-                  </label>
-                ))}
+                {packages
+                  .filter(pkg => !(selectedSite === "1" && pkg.startsWith("200/200Mbps - R1 125")))
+                  .map((pkg, idx) => (
+                    <label className="label cursor-pointer" key={idx}>
+                      <input
+                        type="radio"
+                        name="package"
+                        value={pkg}
+                        checked={selectedPackage === pkg}
+                        onChange={(e) => setSelectedPackage(e.target.value)}
+                        className="radio radio-primary mr-2"
+                        required
+                      />
+                      <span className="label-text">{pkg}</span>
+                    </label>
+                  ))}
               </div>
             </div>
+
 
             {/* Activation radio buttons */}
             <div>
