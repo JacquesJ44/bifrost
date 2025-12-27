@@ -7,3 +7,4 @@ pymysql
 python-dotenv
 email-validator 
 dnspython
+cryptography
