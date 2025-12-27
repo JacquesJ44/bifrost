@@ -99,22 +99,24 @@ def send_support_email(payload):
     """
     support_email = "jacquesj44@gmail.com"
     
-    subject = f"New Fibre Sign-Up: {payload['name']}"
+    subject = f"New Fibre Sign-Up: {payload['name']} - {payload['unit']} - {payload['site']}"
     
     body = f"""
-    New sign-up received:
+    <h2><strong>New sign-up received:</strong></h2>
 
-    Name: {payload['name']}
-    Email: {payload['email']}
-    Phone: {payload['phone']}
-    Site: {payload['site']}
-    Unit: {payload['unit']}
-    Package: {payload['package']}
-    Activation: {payload['activation']}
-    Notes: {payload['notes']}
+    <p>
+        Name: {payload['name']} <br>
+        Email: {payload['email']} <br>
+        Phone: {payload['phone']} <br>
+        <strong> Site: {payload['site']} </strong> <br>
+        Unit: {payload['unit']} <br>
+        Package: {payload['package']} <br>
+        Activation: {payload['activation']} <br> 
+        Notes: {payload['notes']} 
+    </p>
     """
 
-    msg = Message(subject=subject, recipients=[support_email], body=body)
+    msg = Message(subject=subject, recipients=[support_email], html=body)
     
     try:
         mail.send(msg)
@@ -150,14 +152,14 @@ def signup():
         return jsonify({"error": "Invalid JSON payload"}), 400
     
     # --- Honeypot check ---
-    company = data.get("company", "")
+    website = data.get("website", "")
     form_loaded_at = data.get("form_loaded_at")
 
     is_bot = False
     reason = ""
 
     # 1. Company field filled in (should be empty)
-    if company:
+    if website.strip():
         is_bot = True
         reason = "Honeypot field filled"
 
@@ -191,8 +193,13 @@ def signup():
         "site_id",
         "unit_number",
         "package",
-        "activation_type"
+        "activation_type",
+        "signup_type"
     ]
+
+    if data["signup_type"] == "company":
+        if not data.get("company_name"):
+            return jsonify({"error": "Company name and VAT Reg No are required when signing up as a company"}), 400
 
     missing = [f for f in required_fields if not data.get(f)]
     if missing:
@@ -246,7 +253,10 @@ def signup():
         "unit": data["unit_number"],
         "package": data["package"],
         "activation": activation_date,
-        "notes": data.get("notes", "")
+        "notes": data.get("notes", ""),
+        "signup_type": data["signup_type"],
+        "company_name": data.get("company_name", ""),
+        "vat_reg_no": data.get("vat_reg_no", "")
     }
 
     send_support_email(email_payload)  # <-- sends email to support staff

@@ -8,7 +8,7 @@ export default function SignupPage() {
   const [sites, setSites] = useState([]);
   const [units, setUnits] = useState([]);
   const [selectedSite, setSelectedSite] = useState(""); // <-- declare state
-  const [selectedUnit, setSelectedUnit] = useState("");
+  const [selectedUnit, setSelectedUnit] = useState([]);
 
   const packages = ["50/50Mbps - R750", "100/100Mbps - R950", "200/200Mbps - R1 125"]; // default 3 options
   const [selectedPackage, setSelectedPackage] = useState("");
@@ -27,7 +27,10 @@ export default function SignupPage() {
     unit_number: "",
     package: "",
     activation_date: "",
-    notes: ""
+    notes: "",
+    signup_type: "",
+    company_name: "",
+    vat_reg_no: ""
   });
   const [status, setStatus] = useState(null);
 
@@ -93,7 +96,7 @@ export default function SignupPage() {
           activationType === "Scheduled" ? activationDate : null,
 
         // bot protection
-        company: e.target.company?.value || "",
+        website: e.target.website?.value || "",
         form_loaded_at: formLoadedAt
       };
 
@@ -108,10 +111,14 @@ export default function SignupPage() {
         last_name: "",
         email: "",
         phone: "",
-        notes: ""
+        notes: "",
+        signup_type: "",
+        company_name: "",
+        vat_reg_no: ""
       });
       setSelectedSite("");
-      setSelectedUnit("");
+      setUnits([]);
+      setSelectedUnit([]);
       setSelectedPackage("");
       setActivationType("");
       setActivationDate("");
@@ -137,11 +144,54 @@ export default function SignupPage() {
               {/* Honeypot field */}
               <input
                 type="text"
-                name="company"
+                name="website" // bot field
                 tabIndex="-1"
                 autoComplete="off"
                 className="absolute left-[-10000px]"
-              />              
+              />
+              
+              {/* Signup type */}
+              <div className="space-y-2">
+                <label className="font-semibold">Sign up as:</label>
+                <div className="flex gap-4">
+                  <label>
+                    <input
+                      type="radio"
+                      name="signup_type"
+                      value="individual"
+                      checked={form.signup_type === "individual"}
+                      onChange={handleChange}
+                      required
+                    />{" "}
+                    Individual
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="signup_type"
+                      value="company"
+                      checked={form.signup_type === "company"}
+                      onChange={handleChange}
+                      required
+                    />{" "}
+                    Company
+                  </label>
+                </div>
+                {/* Helper text */}
+                {form.signup_type === "individual" && (
+                  <p className="text-xs text-gray-500">
+                    Invoices will be billed to the individual.
+                  </p>
+                )}
+                {form.signup_type === "company" && (
+                  <p className="text-xs text-gray-500">
+                    Invoices will be billed to the company.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 className="input input-bordered w-full"
                 name="first_name"
@@ -159,6 +209,27 @@ export default function SignupPage() {
                 required
               />
             </div>
+
+            {/* Conditional company fields */}
+              {form.signup_type === "company" && (
+                <div className="space-y-4">
+                  <input
+                    className="input input-bordered w-full"
+                    name="company_name"
+                    placeholder="Company Name"
+                    value={form.company_name}
+                    onChange={handleChange}
+                    required
+                  />
+                  <input
+                    className="input input-bordered w-full"
+                    name="vat_reg_no"
+                    placeholder="If you are VAT registered, please enter your VAT Registration No."
+                    value={form.vat_reg_no}
+                    onChange={handleChange}
+                  />
+                </div>
+              )}
 
             {/* Contact fields */}
             <input
@@ -178,7 +249,44 @@ export default function SignupPage() {
               onChange={handleChange}
               required
             />
+    
+            {/* Styled divider + message with icon */}
+            <div className="my-6 p-4 bg-blue-50 rounded-md border border-blue-200 flex items-start gap-2">
+              {/* Icon */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-blue-600 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
+                />
+              </svg>
+              {/* Message + divider */}
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-blue-700 mb-2">
+                  Please ensure the above details are correct — this info will be reflected on your invoice
+                </p>
+                <hr className="border-t border-blue-300" />
+              </div>
+            </div>
 
+
+
+            {/* Divider + header for next section */}
+            <div className="my-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                Apartment & Package Information
+              </h2>
+              <hr className="border-t border-gray-300" />
+            </div>
+
+            
             {/* Site select */}
             <select
               className="select select-bordered w-full"
@@ -196,20 +304,50 @@ export default function SignupPage() {
             </select>
 
             {/* Unit select */}
+            <div>
             <select
               className="select select-bordered w-full"
               name="unit_number"
               value={selectedUnit}
-              onChange={(e) => setSelectedUnit(e.target.value)}
+              onChange={(e) =>
+                setSelectedUnit(
+                  Array.from(e.target.selectedOptions, (option) => option.value)
+                )
+              }
+              multiple
               required
             >
-              <option value="">Select Unit Number</option>
+              <option value="" disabled>
+                Select Unit Number
+              </option>
               {units.map((u) => (
                 <option key={u} value={u}>
                   {u}
                 </option>
               ))}
             </select>
+            {/* Caption */}
+            <p className="text-xs text-gray-500 mt-1">
+              To select multiple units, hold down the <strong>Ctrl</strong> (Windows/Linux) or <strong>Command</strong> (Mac) key.
+            </p>
+
+
+            {/* Display selected units */}
+            <div className="mt-3">
+              <h3 className="font-semibold">Selected Unit(s):</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedUnit.map((unit) => (
+                  <span
+                    key={unit}
+                    className="badge badge-primary p-2"
+                  >
+                    {unit}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
 
             {/* Package radio buttons */}
             <div>
@@ -238,7 +376,7 @@ export default function SignupPage() {
             {/* Activation radio buttons */}
             <div>
               <label className="font-semibold mb-2 block">Activation</label>
-              <div className="flex items-center gap-6 mb-2">
+              <div className="flex flex-wrap items-center gap-6 mb-2">
                 <label className="label cursor-pointer flex items-center">
                   <input
                     type="radio"
@@ -334,10 +472,10 @@ export default function SignupPage() {
               <div className="modal modal-open">
                 <div className="modal-box">
                   <h3 className="font-bold text-lg">Success!</h3>
-                  <p className="py-4">Thanks — we’ll be in touch.</p>
+                  <p className="py-4">Thank you for your application — we’ll be in touch soon.</p>
                   <div className="modal-action">
                     <button
-                      className="btn btn-primary"
+                      className="btn btn-accent"
                       onClick={() => setStatus("")} // Close modal
                     >
                       OK
