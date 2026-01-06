@@ -32,7 +32,10 @@ export default function SignupPage() {
     company_name: "",
     vat_reg_no: ""
   });
-  const [status, setStatus] = useState(null);
+
+  const [status, setStatus] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
 
   // Fetch sites on mount
   useEffect(() => {
@@ -125,7 +128,13 @@ export default function SignupPage() {
     } catch (err) {
       console.error("Signup failed:", err);
       setStatus("error");
+      if (err.response && err.response.data && err.response.data.error) {
+        setErrorMessage(err.response.data.error);
+      } else {
+        setErrorMessage("An unexpected error occurred");
+      }
     }
+
   };
 
 
@@ -489,7 +498,7 @@ export default function SignupPage() {
               <div className="modal modal-open">
                 <div className="modal-box">
                   <h3 className="font-bold text-lg text-red-600">Error</h3>
-                  <p className="py-4">Something went wrong. Please try again.</p>
+                  <p className="py-4">{errorMessage}</p>
                   <div className="modal-action">
                     <button
                       className="btn btn-primary"
