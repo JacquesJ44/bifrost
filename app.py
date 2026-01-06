@@ -23,7 +23,15 @@ app = Flask(__name__)
 # Apply CORS immediately after app creation
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"])
 
-limiter = Limiter(get_remote_address, app=app)
+redis_password = os.getenv('REDIS_PASSWORD')
+redis_uri = f"redis://:{redis_password}@redis-17857.c341.af-south-1-1.ec2.cloud.redislabs.com:17857"
+
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=redis_uri,
+)
+
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
@@ -33,7 +41,7 @@ app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_SUPPRESS_SEND'] = False  # Set to True to disable email sending (for testing)
+app.config['MAIL_SUPPRESS_SEND'] = True  # Set to True to disable email sending (for testing)
 
 mail = Mail(app)
 
@@ -105,6 +113,9 @@ def send_support_email(payload):
     <h2><strong>New sign-up received:</strong></h2>
 
     <p>
+        Signed up as: {payload['signup_type']} <br>
+        Company Name: {payload['company_name']} <br>
+        VAT Reg No: {payload['vat_reg_no']} <br>
         Name: {payload['name']} <br>
         Email: {payload['email']} <br>
         Phone: {payload['phone']} <br>
@@ -158,7 +169,7 @@ def signup():
     is_bot = False
     reason = ""
 
-    # 1. Company field filled in (should be empty)
+    # 1. Website field filled in (should be empty)
     if website.strip():
         is_bot = True
         reason = "Honeypot field filled"
@@ -199,7 +210,7 @@ def signup():
 
     if data["signup_type"] == "company":
         if not data.get("company_name"):
-            return jsonify({"error": "Company name and VAT Reg No are required when signing up as a company"}), 400
+            return jsonify({"error": "Company name is required when signing up as a company"}), 400
 
     missing = [f for f in required_fields if not data.get(f)]
     if missing:
