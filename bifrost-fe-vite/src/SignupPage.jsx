@@ -156,7 +156,7 @@ export default function SignupPage() {
                 name="website" // bot field
                 tabIndex="-1"
                 autoComplete="off"
-                className="absolute left-[-10000px]"
+                className="sr-only"
               />
               
               {/* Signup type */}
@@ -188,12 +188,12 @@ export default function SignupPage() {
                 </div>
                 {/* Helper text */}
                 {form.signup_type === "individual" && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white">
                     Invoices will be billed to the individual.
                   </p>
                 )}
                 {form.signup_type === "company" && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white">
                     Invoices will be billed to the company.
                   </p>
                 )}
@@ -289,7 +289,7 @@ export default function SignupPage() {
 
             {/* Divider + header for next section */}
             <div className="my-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
                 Apartment & Package Information
               </h2>
               <hr className="border-t border-gray-300" />
@@ -336,7 +336,7 @@ export default function SignupPage() {
               ))}
             </select>
             {/* Caption */}
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-white mt-1">
               To select multiple units, hold down the <strong>Ctrl</strong> (Windows/Linux) or <strong>Command</strong> (Mac) key.
             </p>
 
@@ -427,12 +427,12 @@ export default function SignupPage() {
 
               {/* Conditional message */}
               {activationType === "ASAP" && (
-                <p className="text-sm text-black mt-2">
+                <p className="text-sm text-black dark:text-white mt-2">
                   Activation will occur within 24 hours of debit‑order approval.
                 </p>
               )}
               {activationType === "Scheduled" && activationDate && (
-                <p className="text-sm text-black mt-2">
+                <p className="text-sm text-black dark:text-white mt-2">
                   Activation will take place on {activationDate}, subject to debit‑order approval.
                 </p>
               )}
