@@ -4,14 +4,21 @@ import { useEffect, useState } from "react";
 import api from "./api";
 import validator from "email-validator";
 
+import { packageSets } from "./packagesConfig";
+import { buildingPackages } from "./buildingsConfig";
+
+
+
 export default function SignupPage() {
   const [sites, setSites] = useState([]);
   const [units, setUnits] = useState([]);
   const [selectedSite, setSelectedSite] = useState(""); // <-- declare state
   const [selectedUnit, setSelectedUnit] = useState([]);
 
-  const packages = ["50/50Mbps - R750", "100/100Mbps - R950", "200/200Mbps - R1 125"]; // default 3 options
+  // const [selectedBuilding, setSelectedBuilding] = useState("");
   const [selectedPackage, setSelectedPackage] = useState("");
+  const packageSetKey = buildingPackages[selectedSite];
+  const packages = packageSets[packageSetKey] || [];
 
   const [activationType, setActivationType] = useState(""); // "ASAP" or "Scheduled"
   const [activationDate, setActivationDate] = useState(""); // stores date if scheduled
@@ -62,7 +69,7 @@ export default function SignupPage() {
       try {
         const res = await api.get("/api/units", { params: { site_id: selectedSite } });
         setUnits(res.data);
-        console.log("Units from API:", res.data);
+        // console.log("Units from API:", res.data);
       } catch (err) {
         console.error("Failed to fetch units:", err);
       }
@@ -70,6 +77,12 @@ export default function SignupPage() {
 
     fetchUnits();
   }, [selectedSite]);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    // console.log("Building selected:", selectedSite);
+  }, [selectedSite]);
+
   
   const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -324,7 +337,6 @@ export default function SignupPage() {
                 )
               }
               multiple
-              required
             >
               <option value="" disabled>
                 Select Unit Number
@@ -362,9 +374,10 @@ export default function SignupPage() {
             <div>
               <label className="font-semibold mb-2 block">Package</label>
               <div className="flex flex-wrap gap-4">
-                {packages
-                  .filter(pkg => !(selectedSite === "1" && pkg.startsWith("200/200Mbps - R1 125")))
-                  .map((pkg, idx) => (
+                {packages.length === 0 ? (
+                  <p className="text-gray-500">No packages available for this building.</p>
+                ) : (
+                  packages.map((pkg, idx) => (
                     <label className="label cursor-pointer" key={idx}>
                       <input
                         type="radio"
@@ -377,7 +390,8 @@ export default function SignupPage() {
                       />
                       <span className="label-text">{pkg}</span>
                     </label>
-                  ))}
+                  ))
+                )}
               </div>
             </div>
 

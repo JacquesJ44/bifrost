@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import re
 import time
 import os
+import redis
 
 from db import HeimdallSession
 
@@ -24,13 +25,28 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"])
 
 redis_password = os.getenv('REDIS_PASSWORD')
-redis_uri = f"redis://:{redis_password}@redis-17857.c341.af-south-1-1.ec2.cloud.redislabs.com:17857"
+redis_uri = f"redis://default:{redis_password}@redis-15335.c341.af-south-1-1.ec2.cloud.redislabs.com:15335"
+
+
+# Create a Redis client
+redis_client = redis.Redis.from_url(redis_uri)
+
+# Test the connection
+try:
+    pingtest = redis_client.ping()
+    print("Redis connection test:", pingtest)  # Should print True if connected
+except Exception as e:
+    print("Redis connection failed:", e)
+
 
 
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=redis_uri,
 )
+limiter.init_app(app)
+print("Limiter storage backend:", limiter.storage)
+
 
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -40,8 +56,8 @@ app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
 # app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_SUPPRESS_SEND'] = False  # Set to True to disable email sending (for testing)
+# app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+app.config['MAIL_SUPPRESS_SEND'] = False # Set to True to disable email sending (for testing)
 
 mail = Mail(app)
 
@@ -101,11 +117,11 @@ def validate_email_domain(email: str) -> tuple[bool, str | None]:
     # If valid, return normalized email
     return True, normalized_email
 
-def send_support_email(payload):
+def send_emails(payload):
     """
     Sends a new sign-up notification to support staff.
     """
-    support_email = "jacquesj44@gmail.com"
+    support_email = os.getenv('SUPPORT_EMAIL')  # comes from your company, e.g.
     
     subject = f"New Fibre Sign-Up: {payload['name']} - {payload['unit']} - {payload['site']}"
     
@@ -127,13 +143,33 @@ def send_support_email(payload):
     </p>
     """
 
-    msg = Message(subject=subject, recipients=[support_email], html=body)
-    
+    msg_to_support = Message(subject=subject, recipients=[support_email], html=body, sender=payload['email'], reply_to=payload['email'])
+
+    # --- Confirmation Email to Customer ---
+    confirmation_subject = "Your Fibre Sign-Up Confirmation"
+    confirmation_body = f"""
+    Dear {payload['name']},
+
+    Thank you for signing up for Fibre at {payload['site']} (Unit {payload['unit']}).
+    We have received your request with the following details:
+
+    Package: {payload['package']}
+    Activation: {payload['activation']}
+
+    Our support team will be in touch shortly.
+
+    Best regards,
+    The Aesir Team
+    """
+
+    msg_to_customer = Message(subject=confirmation_subject, recipients=[payload['email']], body=confirmation_body, sender=support_email)  # comes from your company
+
     try:
-        mail.send(msg)
-        print("Support email sent successfully.")
+        mail.send(msg_to_support)
+        mail.send(msg_to_customer)
+        print("Support and customer emails sent successfully.")
     except Exception as e:
-        print("Failed to send support email:", e)
+        print("Failed to send emails:", e)
 
 
 @app.route('/api/sites', methods=['GET'])
@@ -157,6 +193,8 @@ def get_units():
 @app.route("/api/signup", methods=["POST"])
 @limiter.limit("5 per minute")
 def signup():
+    print("Limiter keys now:", redis_client.keys("*"))
+
     data = request.get_json(silent=True)
 
     if not data:
@@ -270,7 +308,7 @@ def signup():
         "vat_reg_no": data.get("vat_reg_no", "")
     }
 
-    send_support_email(email_payload)  # <-- sends email to support staff
+    send_emails(email_payload)  # <-- sends email to support staff and a confirmation email to the customer
 
     # --- Success ---
     return jsonify({
