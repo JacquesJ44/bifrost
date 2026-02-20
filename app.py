@@ -70,7 +70,8 @@ logging.basicConfig(
 def fetch_sites():
     session = HeimdallSession()
     try:
-        result = session.execute(text("SELECT id, name FROM sites ORDER BY name"))
+        result = session.execute(text("SELECT id, name FROM sites WHERE id != :excluded_id ORDER BY name"),
+            {"excluded_id": 9})
         return [{"id": row[0], "name": row[1]} for row in result]  # convert to list of dictionaries
     finally:
         session.close()
@@ -143,7 +144,7 @@ def send_emails(payload):
     </p>
     """
 
-    msg_to_support = Message(subject=subject, recipients=[support_email], html=body, sender=payload['email'], reply_to=payload['email'])
+    msg_to_support = Message(subject=subject, recipients=[support_email], html=body, sender=support_email, reply_to=payload['email'])
 
     # --- Confirmation Email to Customer ---
     confirmation_subject = "Your Fibre Sign-Up Confirmation"
