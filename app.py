@@ -10,8 +10,6 @@ from email_validator import validate_email, EmailNotValidError
 import logging
 import dns.resolver
 from dotenv import load_dotenv
-import re
-import time
 import os
 import redis
 
