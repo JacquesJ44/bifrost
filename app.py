@@ -21,31 +21,21 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Apply CORS immediately after app creation
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"])
+# Apply CORS — use CORS_ORIGIN env var in production (e.g. https://yourdomain.com)
+cors_origin = os.getenv('CORS_ORIGIN', '*')
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": cors_origin}}, allow_headers=["Content-Type", "Authorization"])
 
-redis_password = os.getenv('REDIS_PASSWORD')
-redis_uri = f"redis://default:{redis_password}@redis-15335.c341.af-south-1-1.ec2.cloud.redislabs.com:15335"
+redis_uri = os.getenv('REDIS_URI')
 
 
 # Create a Redis client
 redis_client = redis.Redis.from_url(redis_uri)
-
-# Test the connection
-try:
-    pingtest = redis_client.ping()
-    print("Redis connection test:", pingtest)  # Should print True if connected
-except Exception as e:
-    print("Redis connection failed:", e)
-
-
 
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=redis_uri,
 )
 limiter.init_app(app)
-print("Limiter storage backend:", limiter.storage)
 
 
 
@@ -83,7 +73,7 @@ def fetch_units_by_site_id(site_id):
             SELECT s.unit_number
             FROM services s
             WHERE s.site_id = :site_id
-              AND s.status = 'Inactive'
+              AND (s.status = 'Inactive' OR s.status = 'Cancelling')
             ORDER BY s.unit_number
         """
         # Convert site_id to int for safety
@@ -143,7 +133,7 @@ def send_emails(payload):
     </p>
     """
 
-    msg_to_support = Message(subject=subject, recipients=[support_email], html=body, sender=payload['email'], reply_to=payload['email'])
+    msg_to_support = Message(subject=subject, recipients=[support_email], html=body, sender=support_email, reply_to=payload['email'])
 
     # --- Confirmation Email to Customer ---
     confirmation_subject = "Your Fibre Sign-Up Confirmation"
@@ -164,12 +154,8 @@ def send_emails(payload):
 
     msg_to_customer = Message(subject=confirmation_subject, recipients=[payload['email']], body=confirmation_body, sender=support_email)  # comes from your company
 
-    try:
-        mail.send(msg_to_support)
-        mail.send(msg_to_customer)
-        print("Support and customer emails sent successfully.")
-    except Exception as e:
-        print("Failed to send emails:", e)
+    mail.send(msg_to_support)
+    mail.send(msg_to_customer)
 
 
 @app.route('/api/sites', methods=['GET'])
@@ -193,8 +179,6 @@ def get_units():
 @app.route("/api/signup", methods=["POST"])
 @limiter.limit("5 per minute")
 def signup():
-    print("Limiter keys now:", redis_client.keys("*"))
-
     data = request.get_json(silent=True)
 
     if not data:
@@ -277,7 +261,7 @@ def signup():
     if activation_type == "ASAP":
         activation_date = "ASAP"
 
-    # --- (Optional) Verify site_id exists ---
+    # --- Verify site_id exists and unit belongs to it ---
     session = HeimdallSession()
     try:
         site_check = session.execute(
@@ -289,6 +273,13 @@ def signup():
             return jsonify({"error": "Invalid site_id"}), 400
 
         site_name = site_check[0]
+
+        # Validate that each submitted unit belongs to this site with the correct status
+        available_units = fetch_units_by_site_id(data["site_id"])
+        submitted_units = data["unit_number"] if isinstance(data["unit_number"], list) else [data["unit_number"]]
+        invalid_units = [u for u in submitted_units if u not in available_units]
+        if invalid_units:
+            return jsonify({"error": "Invalid or unavailable unit(s)", "units": invalid_units}), 400
 
     finally:
         session.close()
@@ -308,7 +299,11 @@ def signup():
         "vat_reg_no": data.get("vat_reg_no", "")
     }
 
-    send_emails(email_payload)  # <-- sends email to support staff and a confirmation email to the customer
+    try:
+        send_emails(email_payload)
+    except Exception as e:
+        logging.error(f"Failed to send signup emails: {e}, payload={email_payload}")
+        return jsonify({"error": "Signup received but failed to send confirmation emails. Our team has been notified."}), 500
 
     # --- Success ---
     return jsonify({
