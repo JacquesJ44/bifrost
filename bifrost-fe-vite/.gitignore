@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python Test Files
+check_limiter.py
+spam_signup.py
