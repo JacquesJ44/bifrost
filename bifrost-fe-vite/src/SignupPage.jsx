@@ -65,22 +65,20 @@ export default function SignupPage() {
 
     // console.log("Fetching units for site_id:", selectedSite); // <-- log here
 
+    // Reset selections when site changes
+    setSelectedUnit([]);
+    setSelectedPackage("");
+
     const fetchUnits = async () => {
       try {
         const res = await api.get("/api/units", { params: { site_id: selectedSite } });
         setUnits(res.data);
-        // console.log("Units from API:", res.data);
       } catch (err) {
         console.error("Failed to fetch units:", err);
       }
     };
 
     fetchUnits();
-  }, [selectedSite]);
-
-  useEffect(() => {
-    if (!selectedSite) return;
-    // console.log("Building selected:", selectedSite);
   }, [selectedSite]);
 
   
@@ -115,8 +113,6 @@ export default function SignupPage() {
         website: e.target.website?.value || "",
         form_loaded_at: formLoadedAt
       };
-
-      console.log("Submitting payload:", payload);
 
       await api.post("/api/signup", payload);
       setStatus("success");
