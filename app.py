@@ -106,6 +106,62 @@ def validate_email_domain(email: str) -> tuple[bool, str | None]:
     # If valid, return normalized email
     return True, normalized_email
 
+
+def evaluate_bot_risk(data: dict, user_agent: str) -> tuple[bool, str]:
+    """
+    Combine multiple weak bot signals into one decision so we avoid
+    false positives from browser autocomplete filling hidden fields.
+    """
+    website = str(data.get("website") or "").strip()
+    form_loaded_at = data.get("form_loaded_at")
+    user_agent_lc = (user_agent or "").lower()
+
+    score = 0
+    reasons = []
+    delta = None
+
+    if website:
+        score += 1
+        reasons.append("honeypot field filled")
+
+    if form_loaded_at:
+        try:
+            load_time = datetime.fromisoformat(form_loaded_at)
+
+            # Ensure parsed value is timezone-aware before subtraction.
+            if load_time.tzinfo is None:
+                load_time = load_time.replace(tzinfo=timezone.utc)
+
+            delta = (datetime.now(timezone.utc) - load_time).total_seconds()
+            if delta < 2:
+                score += 2
+                reasons.append(f"extremely fast submit ({delta:.2f}s)")
+            elif delta < 10:
+                score += 1
+                reasons.append(f"fast submit ({delta:.2f}s)")
+        except Exception:
+            # Ignore parse errors and continue with other signals.
+            pass
+
+    # Non-browser clients are not always malicious, so keep this signal weak.
+    if not user_agent_lc or any(marker in user_agent_lc for marker in ("python-requests", "curl", "wget", "httpclient")):
+        score += 1
+        reasons.append("non-browser user-agent")
+
+    if score >= 2:
+        return True, ", ".join(reasons)
+
+    if website:
+        logging.info(
+            "Soft-allowed suspicious signup: honeypot field was populated but overall bot risk was low. "
+            "IP=%s, reasons=%s, value=%s",
+            request.remote_addr,
+            ", ".join(reasons) if reasons else "none",
+            website
+        )
+
+    return False, ""
+
 def send_emails(payload):
     """
     Sends a new sign-up notification to support staff.
@@ -183,34 +239,8 @@ def signup():
     if not data:
         return jsonify({"error": "Invalid JSON payload"}), 400
     
-    # --- Honeypot check ---
-    website = data.get("website", "")
-    form_loaded_at = data.get("form_loaded_at")
-
-    is_bot = False
-    reason = ""
-
-    # 1. Website field filled in (should be empty)
-    if website.strip():
-        is_bot = True
-        reason = "Honeypot field filled"
-
-    # 2. Form submitted too fast (e.g., < 3 seconds)
-    if form_loaded_at:
-        try:
-            load_time = datetime.fromisoformat(form_loaded_at)
-
-            # ensure it's timezone-aware
-            if load_time.tzinfo is None:
-                load_time = load_time.replace(tzinfo=timezone.utc)
-
-            delta = (datetime.now(timezone.utc) - load_time).total_seconds()
-            if delta < 10:  # threshold in seconds
-                is_bot = True
-                reason = f"Form submitted too fast ({delta:.2f}s)"
-        except Exception as e:
-            # ignore parsing errors
-            pass
+    # --- Bot risk check (honeypot + speed + user-agent) ---
+    is_bot, reason = evaluate_bot_risk(data, request.headers.get("User-Agent", ""))
 
     if is_bot:
         logging.info(f"Blocked bot attempt: {reason}, IP={request.remote_addr}, data={data}")
@@ -229,7 +259,7 @@ def signup():
         "signup_type"
     ]
 
-    if data["signup_type"] == "company":
+    if data.get("signup_type") == "company":
         if not data.get("company_name"):
             return jsonify({"error": "Company name is required when signing up as a company"}), 400
 

@@ -42,6 +42,7 @@ export default function SignupPage() {
 
   const [status, setStatus] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [honeypotValue, setHoneypotValue] = useState("");
 
 
   // Fetch sites on mount
@@ -110,7 +111,7 @@ export default function SignupPage() {
           activationType === "Scheduled" ? activationDate : null,
 
         // bot protection
-        website: e.target.website?.value || "",
+        website: honeypotValue,
         form_loaded_at: formLoadedAt
       };
 
@@ -134,6 +135,7 @@ export default function SignupPage() {
       setSelectedPackage("");
       setActivationType("");
       setActivationDate("");
+      setHoneypotValue("");
     } catch (err) {
       console.error("Signup failed:", err);
       setStatus("error");
@@ -163,9 +165,23 @@ export default function SignupPage() {
               <input
                 type="text"
                 name="website" // bot field
-                tabIndex="-1"
-                autoComplete="off"
-                className="sr-only"
+                value={honeypotValue}
+                onChange={(e) => setHoneypotValue(e.target.value)}
+                tabIndex={-1}
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="none"
+                inputMode="none"
+                spellCheck={false}
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "-9999px",
+                  width: "1px",
+                  height: "1px",
+                  opacity: 0,
+                  pointerEvents: "none"
+                }}
               />
               
               {/* Signup type */}
