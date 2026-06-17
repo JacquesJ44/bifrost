@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [units, setUnits] = useState([]);
   const [selectedSite, setSelectedSite] = useState(""); // <-- declare state
   const [selectedUnit, setSelectedUnit] = useState([]);
+  const visibleUnitRows = Math.min(Math.max(units.length, 4), 8);
 
   // const [selectedBuilding, setSelectedBuilding] = useState("");
   const [selectedPackage, setSelectedPackage] = useState("");
@@ -340,7 +341,7 @@ export default function SignupPage() {
             {/* Unit select */}
             <div>
             <select
-              className="select select-bordered w-full"
+              className="w-full rounded-lg border border-base-300 bg-base-100 px-3 py-2 focus:border-primary focus:outline-none"
               name="unit_number"
               value={selectedUnit}
               onChange={(e) =>
@@ -349,10 +350,9 @@ export default function SignupPage() {
                 )
               }
               multiple
+              size={visibleUnitRows}
+              disabled={!selectedSite || units.length === 0}
             >
-              <option value="" disabled>
-                Select Unit Number
-              </option>
               {units.map((u) => (
                 <option key={u} value={u}>
                   {u}
@@ -361,7 +361,11 @@ export default function SignupPage() {
             </select>
             {/* Caption */}
             <p className="text-xs text-gray-500 dark:text-white mt-1">
-              To select multiple units, hold down the <strong>Ctrl</strong> (Windows/Linux) or <strong>Command</strong> (Mac) key.
+              {!selectedSite
+                ? "Select a building complex first to load unit numbers."
+                : units.length === 0
+                  ? "No unit numbers are available for this building complex yet."
+                  : "To select multiple units, hold down the Ctrl (Windows/Linux) or Command (Mac) key."}
             </p>
 
 
